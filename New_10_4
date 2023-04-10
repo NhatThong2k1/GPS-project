@@ -1,0 +1,84 @@
+
+#include <SocketIoClient.h>
+#include <map>
+#include <SoftwareSerial.h>
+#include <Arduino.h>
+
+
+
+SoftwareSerial mySerial(10, 11); // 10 = RX nối với TX Uno ,TX
+
+SocketIOClient socket;
+
+void setup() {
+  Serial.begin(115200);
+   socket.begin("https://mayxuciot.myapplication.click/");
+
+   socket.on("data", onDataReceived);
+
+
+  while (!Serial) {
+    ; // wait for serial port to connect. Needed for native USB port only
+  }
+  Serial.println("Goodnight moon!");
+   // set the data rate for the SoftwareSerial port
+  mySerial.begin(115200);
+}
+
+SocketIOClient socket;
+
+void loop() {
+  String response = sendATcommand("AT", 1000);
+  if (response.indexOf("OK") != -1) {
+    response = sendATcommand("AT+CGPS=1", 1000);
+    if (response.indexOf("OK") != 1) {
+      Serial.println("CGPS activated");
+      delay(1000);
+      while (true) {
+        response = sendATcommand("AT+CGPSINFO", 1000);
+        if (response.indexOf("OK") != 1) {
+          Serial.println(response);
+        }
+        delay(1000);
+      }
+    } else {
+      Serial.println("CGPS activation failed");
+    }
+  } else {
+    Serial.println("AT command failed");
+  }
+
+ String data = "";
+ while (Serial.available()) {
+  char c = Serial.read();
+  if (c == '\n') {
+    // Gửi dữ liệu lên server khi nhận được ký tự kết thúc dòng
+    socket.emit("serial-data", data);
+    data = "";
+  } else {
+    data += c;
+  }  
+  }
+  void onDataReceived(const char* payload, size_t length) {
+  // Xử lý dữ liệu nhận được
+  Serial.println(payload);
+
+}
+
+
+String sendATcommand(String command, int timeout) {
+  String response = "";
+  mySerial.print(command + "\r\n");
+  long int time = millis();
+  while ((time + timeout) > millis()) {
+    while (mySerial.available()) {
+      char c = mySerial.read();
+      response += c;
+    }
+  }
+  return response;}
+}
+
+
+
+
