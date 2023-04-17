@@ -1,0 +1,147 @@
+ #include <WebSocket.h>
+#include <WebSocketClient.h>
+#include <WebSocketServer.h>
+#include <config.h>
+#include <platform.h>
+#include <utility.h>
+
+ 
+#include <SoftwareSerial.h>
+#include <TinyGPS.h>
+#include <SoftwareSerial.h>
+
+using namespace net;
+TinyGPS gps;
+SoftwareSerial mySerial(10, 11); // 10 = RX nối với TX Uno ,TX
+WebSocketClient client;
+
+
+void setup() {
+  
+  
+
+  // put your setup code here, to run once:
+
+  Serial.begin(115200);       // Khởi tạo kết nối Serial để truyền dữ liệu đến máy tính
+   
+   mySerial.println("AT");
+  delay(1000);
+
+  while (!Serial) {
+    ; // wait for serial port to connect. Needed for native USB port only
+  }
+
+  Serial.println("Goodnight moon!");
+   // set the data rate for the SoftwareSerial port
+  mySerial.begin(115200);
+
+  client.onOpen([](WebSocket &ws) {
+    const char message[]{ "Hello from Arduino client!" };
+    ws.send(WebSocket::DataType::TEXT, message, strlen(message));
+  });
+  client.onClose([](WebSocket &ws, const WebSocket::CloseCode code,
+                   const char *reason, uint16_t length) {
+    // ...
+  });
+  client.onMessage([](WebSocket &ws, const WebSocket::DataType dataType,
+                     const char *message, uint16_t length) {
+    // ...
+  });
+
+  client.open("socketmayxuciot.gorokiapp.com", 80);
+}
+
+String sendATcommand(String command, int timeout) {
+  String response = "";
+  mySerial.print(command + "\r\n");
+  long int time = millis();
+  while ((time + timeout) > millis()) {
+    while (mySerial.available()) {
+      char c = mySerial.read();
+      response += c;
+    }
+  }
+  return response;
+}
+
+
+
+
+
+
+
+
+void loop() {
+  // put your main code here, to run repeatedly:
+   
+
+   String response = sendATcommand("AT", 1000);   // nhận dữ liệu GPS
+  if (response.indexOf("OK") != -1) {
+    response = sendATcommand("AT+CGDCONT=1,\"IP\",\"v-internet\",\"0.0.0.0\",0,0", 1000);
+    if (response.indexOf("OK") != 1) {
+      Serial.println("AT+CGDCONT command sent successfully");
+      delay(1000);
+      response = sendATcommand("AT+CGREG=1", 1000);
+      if (response.indexOf("OK") != 1) {
+       Serial.println("AT+CGREG=1 command sent successfully");              
+       delay(1000);
+       response = sendATcommand("AT+CGACT=1,1", 1000);
+        
+        if (response.indexOf("OK") != 1) {
+        Serial.println("AT+CGACT=1,1 command sent successfully");
+       
+    ////////////////////////////////////////////////////////////////////////
+        response = sendATcommand("AT+CGPS=1", 1000);
+    if (response.indexOf("OK") != 1) {
+      Serial.println("CGPS activated");
+      delay(1000);
+      while (true) {
+        response = sendATcommand("AT+CGPSINFO", 1000);
+        if (response.indexOf("OK") != 1) {
+          Serial.println(response);
+           
+            if (client.open("socketmayxuciot.gorokiapp.com", 80, "/")) {
+            
+                       // Gửi lên Web               
+              client.onOpen([](WebSocket &ws) {
+               char message = '6434e0c1e4acb5540620f799;1';
+                
+              ws.send(WebSocket::DataType::TEXT, message, strlen(message));
+              });
+              Serial.println("Sent message to server");              
+               }
+               else {
+                  Serial.println(" Connection failed!");
+        }
+            }
+          }
+      }
+      }
+        else {
+      Serial.println("CGPS activation failed");
+    }
+        
+        delay(1000);
+      }
+      else {
+          Serial.println("Error sending AT+CGACT command");
+        }
+      }else {
+        Serial.println("Error sending AT+CGREG command");
+      }
+    } 
+    else {
+      Serial.println("Error sending AT+CGDCONT command");
+    }
+  ;}
+    ////////////////////////////////////////////////////
+    
+    
+  
+
+  ///////////////////////////////////////////////////////////////////
+  
+
+ 
+
+ 
