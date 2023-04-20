@@ -1,0 +1,139 @@
+#include <WebSocketClient.h>
+#include <SoftwareSerial.h>
+using namespace net;
+ 
+
+WebSocketClient client;
+
+
+  
+SoftwareSerial mySerial(10, 11); // RX, TX
+ 
+
+void setup() {
+  mySerial.begin(115200);
+  Serial.begin(115200);
+  while (!Serial) {}
+  
+  Serial.println("Goodnight moon!");
+  // Cấu hình mạng di động
+  String response = sendATcommand("AT+CGDCONT=1,\"IP\",\"v-internet\",\"0.0.0.0\",0,0", 1000);
+  //sendATcommand("AT+CGDCONT=1,\"IP\",\"v-internet\",\"0.0.0.0\",0,0", 1000);
+   if (response.indexOf("OK") != -1) {
+     Serial.println("AT+CGDCONT=1 activated");
+      response = sendATcommand("AT+CGREG=1", 1000);
+     //sendATcommand("AT+CGREG=1", 1000);
+     if (response.indexOf("OK") != -1) {
+       Serial.println("AT+CGREG=1 activated");
+        response = sendATcommand("AT+CGACT=1,1", 1000);
+       // sendATcommand("AT+CGACT=1,1", 1000);
+        if (response.indexOf("OK") != -1) {
+          Serial.println("AT+CGACT=1,1");
+        }
+     }
+
+   }
+   else{
+     Serial.println("AT+CGDCONT=1 failed");
+   }
+  delay(1000);
+  
+  delay(1000);
+  
+
+  // Kết nối tới WebSocket Server
+  client.open("socketmayxuciot.gorokiapp.com", 80,"/");
+  client.onOpen([](WebSocket &ws) {
+    Serial.println(F("Connected"));
+    const auto protocol = ws.getProtocol();
+    if (protocol) {
+      Serial.print(F("Client protocol: "));
+      Serial.println(protocol);
+    }
+  });
+}
+
+void loop() {
+ // getGPSData(); // Lấy dữ liệu GPS
+
+  String gpsData = "";
+ 
+  String response = sendATcommand("AT", 1000);
+  if (response.indexOf("OK") != -1) {
+    response = sendATcommand("AT+CGPS=1", 1000);
+    if (response.indexOf("OK") != 1) {
+      Serial.println("CGPS activated");
+      delay(1000);
+     // while (true) {
+        response = sendATcommand("AT+CGPSINFO", 1000);
+        if (response.indexOf("OK") != 1) {
+          Serial.println(response);
+          gpsData = response;
+       //   return gpsData;         
+        }
+        
+      //}
+    } 
+  }
+
+
+
+
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+  if (client.open("socketmayxuciot.gorokiapp.com", 80, "/")) {
+     mySerial.println("Connected to WebSocket server");
+    // Gửi dữ liệu GPS đến máy chủ web
+    char message = '640fe6dc53e189acf83e073c;';
+               message += mySerial.read();
+    client.send(WebSocket::DataType::TEXT, message, strlen(message));
+    mySerial.println("Data sent to WebSocket server");
+  } else {
+    mySerial.println("Failed to connect to WebSocket server");
+  }
+
+   
+}
+
+String sendATcommand(String command, int timeout) {
+  String response = "";
+  mySerial.println(command);
+  long int time = millis();
+  while ((time + timeout) > millis()) {
+    while (mySerial.available()) {
+      char c = mySerial.read();
+      response += c;
+    }
+  }
+  return response;
+}
+
+//String getGPSData() {
+ // String gpsData = "";
+ 
+ // String response = sendATcommand("AT", 1000);
+ // if (response.indexOf("OK") != -1) {
+//    response = sendATcommand("AT+CGPS=1", 1000);
+//    if (response.indexOf("OK") != 1) {
+//      Serial.println("CGPS activated");
+//      delay(1000);
+//     // while (true) {
+//        response = sendATcommand("AT+CGPSINFO", 1000);
+//        if (response.indexOf("OK") != 1) {
+//          Serial.println(response);
+//          gpsData = response;
+//          return gpsData;
+//          
+//        }
+//        delay(1000);
+//      //}
+//    } else {
+ //     Serial.println("CGPS activation failed");
+ //   }
+ // } else {
+ //   Serial.println("AT command failed");
+ // }
+
+  
+//}
+
